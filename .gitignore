@@ -47,6 +47,9 @@ yarn-error.log*
 *.xlsx
 *.xls
 *.csv
+# This directory is application code, not an exported guest list.
+!/app/api/admin/rsvps.csv/
+!/app/api/admin/rsvps.csv/route.ts
 *.sqlite
 *.db
 *.tsbuildinfo
