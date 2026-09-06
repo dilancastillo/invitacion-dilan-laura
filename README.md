@@ -28,7 +28,8 @@ El primer despliegue muestra la invitación general. No distribuyas todavía enl
 
 En Vercel, abre **Storage / Marketplace**, elige **Neon**, revisa el plan y conecta una base PostgreSQL a este proyecto.
 No hace falta contratar un plan de pago para preparar el proyecto; verifica los límites y el precio antes de aceptar cualquier alta.
-La conexión debe quedar como `DATABASE_URL`, solo en el servidor y en el entorno de producción adecuado.
+La conexión puede quedar como `DATABASE_URL` o como `DATABASE_WEEDING_DATABASE_URL`, el nombre exacto creado por la integración de este proyecto. Ambas se leen solo en el servidor; configura la conexión en Production. No hace falta renombrar la integración ni copiar su contraseña al chat. El prefijo `WEEDING` se conserva tal como está en Vercel.
+Si se configuran ambas variables, `DATABASE_URL` tiene prioridad tanto en la aplicación como en el script de migración. Deja una sola conexión configurada para evitar confusiones; no uses las variables de contraseña aislada ni las que terminan en `NO_SSL`. Vuelve a desplegar después de guardar variables.
 No reutilices la base de producción para pruebas ni previews con datos reales.
 
 Para preparar las tablas, descarga de forma segura las variables a `.env.local` con la herramienta de Vercel, o coloca allí tu conexión. Nunca la pegues en el chat ni la subas a GitHub.

@@ -16,7 +16,8 @@ export async function startTestServer(overrides = {}) {
     windowsHide: true,
     env: {
       ...process.env, NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1", SITE_URL: origin,
-      NEXTAUTH_URL: origin, DATABASE_URL: "", GITHUB_ID: "", GITHUB_SECRET: "",
+      NEXTAUTH_URL: origin, DATABASE_URL: "", DATABASE_WEEDING_DATABASE_URL: "",
+      GITHUB_ID: "", GITHUB_SECRET: "",
       ADMIN_GITHUB_IDS: "", NEXTAUTH_SECRET: "", RSVP_NOTIFY_TO: "", RSVP_EMAIL_FROM: "",
       RESEND_API_KEY: "", VERCEL: "", VERCEL_URL: "", VERCEL_PROJECT_PRODUCTION_URL: "",
       ...overrides,

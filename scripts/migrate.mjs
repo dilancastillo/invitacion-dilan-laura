@@ -2,13 +2,15 @@ import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
 
-if (!process.env.DATABASE_URL?.trim()) {
-  console.error("Falta DATABASE_URL. Configúrala en .env.local o en el entorno privado.");
+// Match the runtime's precedence, including the exact Neon prefix chosen in Vercel.
+const connection = process.env.DATABASE_URL?.trim() || process.env.DATABASE_WEEDING_DATABASE_URL?.trim();
+if (!connection) {
+  console.error("Falta DATABASE_URL o DATABASE_WEEDING_DATABASE_URL. Configúrala en .env.local o en el entorno privado.");
   process.exit(1);
 }
 
 try {
-  const sql = neon(process.env.DATABASE_URL);
+  const sql = neon(connection);
   await sql.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
     name text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
