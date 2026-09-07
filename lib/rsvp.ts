@@ -5,6 +5,8 @@ export type Decision = "attending" | "declined";
 export type InviteRecord = {
   id: number;
   displayName: string;
+  seatCount: number;
+  isTest: boolean;
   decision: Decision | null;
   message: string | null;
   submittedAt: string | null;
@@ -32,7 +34,7 @@ export function isValidTokenShape(token: string): boolean {
 export async function getInviteByToken(token: string): Promise<InviteRecord | null> {
   if (!isValidTokenShape(token)) return null;
   const records = await queryDatabase<InviteRecord>(
-    `SELECT g.id, g.display_name AS "displayName", r.decision, r.message,
+    `SELECT g.id, g.display_name AS "displayName", g.seat_count AS "seatCount", g.is_test AS "isTest", r.decision, r.message,
       to_char(r.submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "submittedAt"
      FROM guests g LEFT JOIN rsvps r ON r.guest_id = g.id
      WHERE g.token_hash = $1 AND g.active = true LIMIT 1`,
@@ -46,7 +48,7 @@ export async function saveResponse(guestId: number, decision: Decision, message:
   const records = await queryDatabase<SavedResponse>(
     `INSERT INTO rsvps (guest_id, decision, message)
      SELECT id, $2, $3 FROM guests
-     WHERE id = $1 AND active = true AND CURRENT_TIMESTAMP < $4::timestamptz
+     WHERE id = $1 AND active = true AND is_test = false AND CURRENT_TIMESTAMP < $4::timestamptz
      ON CONFLICT (guest_id) DO NOTHING
      RETURNING decision, message,
        to_char(submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "submittedAt"`,
@@ -55,13 +57,15 @@ export async function saveResponse(guestId: number, decision: Decision, message:
   return records[0] ?? null;
 }
 
-export async function notifyRsvp(guestId: number, displayName: string, decision: Decision, message: string): Promise<"pending" | "sent" | "failed"> {
+export async function notifyRsvp(guestId: number, displayName: string, decision: Decision, message: string, seatCount = 1): Promise<"pending" | "sent" | "failed"> {
   const runtime = getRuntimeEnv();
   const recipient = runtime.RSVP_NOTIFY_TO?.trim();
   const sender = runtime.RSVP_EMAIL_FROM?.trim();
   const apiKey = runtime.RESEND_API_KEY?.trim();
   if (!recipient || !sender || !apiKey) return "pending";
-  const decisionLabel = decision === "attending" ? "Sí asistirá" : "No podrá asistir";
+  const decisionLabel = decision === "attending"
+    ? seatCount > 1 ? `Sí asistirán (${seatCount} personas)` : "Sí asistirá (1 persona)"
+    : seatCount > 1 ? `No podrán asistir (${seatCount} personas)` : "No podrá asistir (1 persona)";
 
   try {
     const request = await fetch("https://api.resend.com/emails", {

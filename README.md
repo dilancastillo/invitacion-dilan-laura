@@ -1,7 +1,7 @@
 # Invitación de Dilan y Laura — Vercel
 
 Copia independiente de la invitación, preparada con Next.js, PostgreSQL/Neon y NextAuth.js.
-Conserva el diseño aprobado, las fotografías, el audio y el formulario individual.
+Conserva el diseño aprobado, las fotografías y el audio. Cada enlace representa una invitación individual, de pareja o familiar.
 No utiliza el alojamiento ni el inicio de sesión de ChatGPT.
 
 ## Estado de la entrega
@@ -42,7 +42,13 @@ npm run db:migrate
 El script registra la migración y es repetible: si ya se aplicó, no modifica los datos. Si existe una estructura no reconocida, se detiene. Las migraciones NO se ejecutan automáticamente durante cada build.
 La consulta de confirmación utiliza `ON CONFLICT DO NOTHING`: una segunda respuesta no sustituye a la primera.
 
-Los invitados se cargarán posteriormente desde **únicamente la pestaña principal del Excel corregido**. El Excel y la lista de enlaces deben permanecer fuera del repositorio. Cada enlace individual contiene un token aleatorio y la base guarda solo su hash SHA-256.
+Los invitados se cargarán desde **únicamente la pestaña principal del Excel corregido**, con un enlace por fila. El Excel, el SQL nominal y la lista de enlaces deben permanecer fuera del repositorio. Cada enlace contiene un token aleatorio y la base guarda solo su hash SHA-256.
+
+La migración `002-group-invitations` añade `seat_count`, `is_test` y `source_key` sin modificar la migración inicial. Una respuesta confirma o rechaza todos los cupos de la invitación; no existe confirmación parcial. Los cupos nunca se toman de parámetros enviados por el visitante. Cualquier corrección posterior a los cupos requiere una revisión expresa, ya que afectaría el conteo de personas.
+
+Las invitaciones `is_test = true` son solo vistas previas: permiten abrir el sobre y recorrer la invitación, pero no guardan respuestas, no envían correos y se excluyen del panel real y del CSV. El panel distingue el número de invitaciones del número de personas según sus cupos.
+
+La carga usa una `source_key` estable basada en el N.º original del Excel. Una repetición idéntica no cambia nada; una discrepancia de nombre, cupos, tipo de prueba o hash debe abortar, nunca reemplazar respuestas o rotar enlaces. Conserva el manifiesto privado de tokens para poder recuperar los mismos enlaces. No ejecutes el importador y el migrador simultáneamente. Ejecuta la migración de grupos antes de activar los enlaces personalizados.
 
 ## 3. Activar el panel privado
 

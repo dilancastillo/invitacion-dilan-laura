@@ -9,6 +9,8 @@ export async function GET() {
   const rows = await getAdminRows();
   const header = [
     "Invitado",
+    "Cupos reservados",
+    "Personas confirmadas",
     "Respuesta",
     "Fecha de respuesta",
     "Mensaje",
@@ -19,6 +21,8 @@ export async function GET() {
     ...rows.map((row) =>
       [
         row.displayName,
+        row.seatCount,
+        row.decision === "attending" ? row.seatCount : row.decision === "declined" ? 0 : null,
         row.decision === "attending"
           ? "Asiste"
           : row.decision === "declined"

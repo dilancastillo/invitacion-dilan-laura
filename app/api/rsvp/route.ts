@@ -95,6 +95,12 @@ export async function POST(request: Request) {
     if (!invite) {
       return Response.json({ error: "La invitación no es válida." }, { status: 404, headers: JSON_HEADERS });
     }
+    if (invite.isTest) {
+      return Response.json(
+        { error: "Esta invitación es de prueba y no registra confirmaciones." },
+        { status: 403, headers: JSON_HEADERS },
+      );
+    }
     if (invite.decision) {
       return Response.json(
         { error: "Esta invitación ya tiene una respuesta registrada." },
@@ -113,7 +119,7 @@ export async function POST(request: Request) {
       );
     }
 
-    after(() => notifyRsvp(invite.id, invite.displayName, decision, message));
+    after(() => notifyRsvp(invite.id, invite.displayName, decision, message, invite.seatCount));
 
     return Response.json(
       {

@@ -17,6 +17,8 @@ export type ExistingResponse = {
 
 type WeddingInvitationProps = {
   guestName: string;
+  seatCount?: number;
+  isTest?: boolean;
   token: string | null;
   initialResponse: ExistingResponse | null;
   preview?: boolean;
@@ -41,10 +43,15 @@ function getCountdown(): Countdown {
 
 export function WeddingInvitation({
   guestName,
+  seatCount = 1,
+  isTest = false,
   token,
   initialResponse,
   preview = false,
 }: WeddingInvitationProps) {
+  const isGroup = seatCount > 1;
+  const seatLabel = `${seatCount} ${isGroup ? "asientos" : "asiento"}`;
+  const readOnly = preview || isTest;
   const [isOpen, setIsOpen] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -173,6 +180,7 @@ export function WeddingInvitation({
 
   function reviewResponse(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (readOnly) return;
     if (!decision) {
       setFormError("Elige una de las dos opciones para continuar.");
       return;
@@ -182,7 +190,7 @@ export function WeddingInvitation({
   }
 
   async function submitResponse() {
-    if (!token || !decision) return;
+    if (!token || !decision || readOnly) return;
     setFormStatus("sending");
     setFormError("");
 
@@ -277,14 +285,14 @@ export function WeddingInvitation({
             <p className="section-kicker">Una invitación para</p>
             <h2 id="welcome-title">{guestName}</h2>
             <p className="seat-reservation">
-              Hemos reservado <strong>1 asiento</strong> en tu honor.
+              Hemos reservado <strong>{seatLabel}</strong> en tu honor.
             </p>
             <p>
-              Nos hará inmensamente felices compartir contigo el comienzo de esta nueva etapa.
+              Nos hará inmensamente felices compartir {isGroup ? "con ustedes" : "contigo"} el comienzo de esta nueva etapa.
             </p>
             <div className="reserved-note">
               <span>Será una celebración íntima, donde cada lugar tiene un nombre.</span>
-              <strong>El tuyo está reservado con muchísimo cariño.</strong>
+              <strong>{isGroup ? "Sus lugares están reservados con muchísimo cariño." : "El tuyo está reservado con muchísimo cariño."}</strong>
             </div>
           </div>
         </section>
@@ -495,6 +503,7 @@ export function WeddingInvitation({
               preparar con cariño cada lugar.
             </p>
             <small>Este enlace fue preparado especialmente para {guestName}.</small>
+            {isGroup && <p>Una sola respuesta confirmará o rechazará los {seatCount} cupos de esta invitación.</p>}
           </div>
 
           <div className="rsvp-card reveal">
@@ -513,19 +522,25 @@ export function WeddingInvitation({
                 </h3>
                 <p>
                   {response.decision === "attending"
-                    ? "Tu lugar ha quedado confirmado. Nos encantará compartir este día contigo."
-                    : "Te extrañaremos ese día y agradecemos mucho que formes parte de nuestra historia."}
+                    ? isGroup
+                      ? `Sus ${seatCount} lugares han quedado confirmados. Nos encantará compartir este día con ustedes.`
+                      : "Tu lugar ha quedado confirmado. Nos encantará compartir este día contigo."
+                    : isGroup
+                      ? "Los extrañaremos ese día y agradecemos mucho que formen parte de nuestra historia."
+                      : "Te extrañaremos ese día y agradecemos mucho que formes parte de nuestra historia."}
                 </p>
                 <small>Esta invitación ya tiene una respuesta registrada.</small>
               </div>
             ) : (
               <form onSubmit={reviewResponse}>
-                {preview && (
+                {readOnly && (
                   <div className="preview-notice">
-                    Vista previa · La confirmación se activará al cargar la lista de invitados
+                    {isTest
+                      ? "Invitación de prueba · Solo vista previa; no registra confirmaciones ni cuenta entre los invitados reales."
+                      : "Vista previa · La confirmación está disponible únicamente con tu enlace personal."}
                   </div>
                 )}
-                <fieldset disabled={preview || formStatus === "sending"}>
+                <fieldset disabled={readOnly || formStatus === "sending"}>
                   <legend className="sr-only">Elige tu respuesta</legend>
                   <label className={decision === "attending" ? "choice selected" : "choice"}>
                     <input
@@ -537,7 +552,7 @@ export function WeddingInvitation({
                     />
                     <span className="choice-icon" aria-hidden="true">✓</span>
                     <span>
-                      <strong>Sí, con mucha alegría asistiré</strong>
+                      <strong>{isGroup ? "Sí, con mucha alegría asistiremos" : "Sí, con mucha alegría asistiré"}</strong>
                       <small>Será hermoso celebrar juntos.</small>
                     </span>
                   </label>
@@ -551,7 +566,7 @@ export function WeddingInvitation({
                     />
                     <span className="choice-icon choice-icon-quiet" aria-hidden="true">—</span>
                     <span>
-                      <strong>Esta vez no podré acompañarlos</strong>
+                      <strong>{isGroup ? "Esta vez no podremos acompañarlos" : "Esta vez no podré acompañarlos"}</strong>
                       <small>Gracias por hacérnoslo saber.</small>
                     </span>
                   </label>
@@ -574,8 +589,8 @@ export function WeddingInvitation({
 
                 {formError && <p className="form-error" role="alert">{formError}</p>}
 
-                <button className="submit-button" type="submit" disabled={preview || formStatus === "sending"}>
-                  {preview ? "Disponible con tu enlace personal" : "Revisar mi respuesta"}
+                <button className="submit-button" type="submit" disabled={readOnly || formStatus === "sending"}>
+                  {isTest ? "Solo vista previa" : preview ? "Disponible con tu enlace personal" : isGroup ? "Revisar nuestra respuesta" : "Revisar mi respuesta"}
                 </button>
               </form>
             )}
@@ -624,7 +639,7 @@ export function WeddingInvitation({
                 <div className="gate-reveal-copy">
                   <p>Para {guestName}</p>
                   <strong>Dilan <span>&amp;</span> Laura</strong>
-                  <small>Invitación personal · 1 lugar reservado</small>
+                  <small>{isGroup ? `Invitación para ${seatCount} personas · ${seatCount} lugares reservados` : "Invitación personal · 1 lugar reservado"}</small>
                 </div>
               </div>
               <div className="envelope-pocket-left" aria-hidden="true" />
@@ -654,9 +669,12 @@ export function WeddingInvitation({
           <div className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
             <p className="section-kicker">Una última revisión</p>
             <h2 id="confirm-title">
-              {decision === "attending" ? "Confirmas que asistirás" : "Confirmas que no podrás asistir"}
+              {isGroup
+                ? decision === "attending" ? `Confirman que asistirán las ${seatCount} personas` : `Confirman que no asistirán las ${seatCount} personas`
+                : decision === "attending" ? "Confirmas que asistirás" : "Confirmas que no podrás asistir"}
             </h2>
             <p>Esta respuesta será definitiva para que podamos reservar cada lugar con cuidado.</p>
+            {isGroup && <p>Se aplicará a todos los {seatCount} cupos de esta invitación.</p>}
             <div className="dialog-actions">
               <button
                 className="secondary-button"

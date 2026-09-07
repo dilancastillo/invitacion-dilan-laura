@@ -39,6 +39,8 @@ export default async function PersonalizedInvitation({
   return (
     <WeddingInvitation
       guestName={invite.displayName}
+      seatCount={invite.seatCount}
+      isTest={invite.isTest}
       token={token}
       initialResponse={
         invite.decision && invite.submittedAt

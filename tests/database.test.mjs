@@ -28,6 +28,7 @@ before(async () => {
   database = new PGlite();
   const schema = await readFile(new URL("../db/migrations/001-invitations.sql", import.meta.url), "utf8");
   await database.exec(schema);
+  await database.exec(await readFile(new URL("../db/migrations/002-group-invitations.sql", import.meta.url), "utf8"));
   const databaseModule = {
     databaseIsConfigured: () => true,
     queryDatabase: async (sql, args) => {
@@ -52,9 +53,9 @@ before(async () => {
 });
 after(async () => { await database?.close(); });
 
-async function fixtureGuest(token, name = "Invitado de prueba", active = true) {
-  const rows = await database.query("INSERT INTO guests (display_name, token_hash, active) VALUES ($1,$2,$3) RETURNING id", [
-    name, await rsvp.sha256Hex(token), active,
+async function fixtureGuest(token, name = "Invitado de prueba", active = true, seatCount = 1, isTest = false) {
+  const rows = await database.query("INSERT INTO guests (display_name, token_hash, active, seat_count, is_test) VALUES ($1,$2,$3,$4,$5) RETURNING id", [
+    name, await rsvp.sha256Hex(token), active, seatCount, isTest,
   ]);
   return rows.rows[0].id;
 }
@@ -96,7 +97,7 @@ test("simultaneous RSVP submissions only save one decision and schedule one noti
   const previousNotifications = notifications.length;
   await jobs[originalJobs]();
   assert.equal(notifications.length - previousNotifications, 1);
-  assert.deepEqual(notifications.at(-1), [id, "Invitado de prueba", saved[0].decision, saved[0].message]);
+  assert.deepEqual(notifications.at(-1), [id, "Invitado de prueba", saved[0].decision, saved[0].message, 1]);
   assert.equal((await endpoint.POST(request(token, "declined", "No debe reemplazar"))).status, 409);
   assert.equal((await rsvp.getInviteByToken(token)).message, saved[0].message);
 });
@@ -132,4 +133,61 @@ test("admin queries and CSV escaping preserve names but never execute spreadshee
   assert.equal(admin.csvCell("\t@SUM(A1)"), '"\'\t@SUM(A1)"');
   assert.equal(admin.csvCell('María "Luz"'), '"María ""Luz"""');
   assert.equal((await admin.requireAdminApi()).response.status, 401);
+});
+
+test("one group response confirms all four server-owned seats and ignores forged counts", async (context) => {
+  context.mock.method(Date, "now", () => Date.parse("2026-09-10T12:00:00Z"));
+  const token = "h".repeat(32);
+  await fixtureGuest(token, "Familia de cuatro", true, 4);
+  const invite = await rsvp.getInviteByToken(token);
+  assert.equal(invite.seatCount, 4);
+  assert.equal(invite.isTest, false);
+  const response = await endpoint.POST(new Request(`${fixtureOrigin}/api/rsvp`, {
+    method: "POST", headers: { "Content-Type": "application/json", origin: fixtureOrigin },
+    body: JSON.stringify({ token, decision: "attending", seatCount: 1, isTest: true }),
+  }));
+  assert.equal(response.status, 201);
+  const row = (await admin.getAdminRows()).find(row => row.id === invite.id);
+  assert.deepEqual(admin.summarizeInvitations([row]), { invitations: 1, seats: 4, attending: 4, declined: 0, pending: 0 });
+  assert.deepEqual(admin.summarizeInvitations([{...row, decision: "declined"}]), { invitations: 1, seats: 4, attending: 0, declined: 4, pending: 0 });
+  assert.deepEqual(admin.summarizeInvitations([{...row, decision: null}]), { invitations: 1, seats: 4, attending: 0, declined: 0, pending: 4 });
+  await jobs.at(-1)();
+  assert.equal(notifications.at(-1).at(-1), 4);
+});
+
+test("test invitations are view-only and excluded from real rows, counts and email", async (context) => {
+  context.mock.method(Date, "now", () => Date.parse("2026-09-10T12:00:00Z"));
+  const summaryBefore = admin.summarizeInvitations(await admin.getAdminRows());
+  const token = "i".repeat(32);
+  const id = await fixtureGuest(token, "Vista previa de pareja", true, 2, true);
+  assert.equal((await rsvp.getInviteByToken(token)).isTest, true);
+  const jobsBefore = jobs.length;
+  assert.equal((await endpoint.POST(request(token))).status, 403);
+  assert.equal(await rsvp.saveResponse(id, "attending", "No debe guardarse"), null);
+  const forged = new Request(`${fixtureOrigin}/api/rsvp`, {
+    method: "POST", headers: { "Content-Type": "application/json", origin: fixtureOrigin },
+    body: JSON.stringify({ token, decision: "attending", isTest: false }),
+  });
+  assert.equal((await endpoint.POST(forged)).status, 403);
+  assert.equal(jobs.length, jobsBefore);
+  const rows = await admin.getAdminRows();
+  assert.ok(!rows.some(row => row.id === id));
+  assert.deepEqual(admin.summarizeInvitations(rows), summaryBefore);
+  assert.equal((await database.query("SELECT count(*) FROM rsvps WHERE guest_id=$1", [id])).rows[0].count, 0);
+});
+
+test("the additive group migration preserves existing records and validates seats", async () => {
+  const legacy = new PGlite();
+  try {
+    await legacy.exec(await readFile(new URL("../db/migrations/001-invitations.sql", import.meta.url), "utf8"));
+    await legacy.query("INSERT INTO guests(display_name,token_hash) VALUES ($1,$2)", ["Anterior", "b".repeat(64)]);
+    await legacy.exec("INSERT INTO rsvps(guest_id,decision,message) VALUES (1,'attending','Conservar')");
+    await legacy.exec(await readFile(new URL("../db/migrations/002-group-invitations.sql", import.meta.url), "utf8"));
+    const record = (await legacy.query("SELECT display_name, seat_count, is_test, source_key FROM guests")).rows[0];
+    assert.deepEqual(record, {display_name: "Anterior", seat_count: 1, is_test: false, source_key: null});
+    assert.equal((await legacy.query("SELECT message FROM rsvps")).rows[0].message, "Conservar");
+    await assert.rejects(legacy.exec("UPDATE guests SET seat_count=0"));
+    await assert.rejects(legacy.exec("UPDATE guests SET seat_count=-1"));
+    await assert.rejects(legacy.exec("UPDATE guests SET seat_count=NULL"));
+  } finally { await legacy.close(); }
 });

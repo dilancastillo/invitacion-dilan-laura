@@ -4,6 +4,7 @@ import { databaseIsConfigured } from "../../lib/database";
 import {
   getAdminRows,
   notificationsAreConfigured,
+  summarizeInvitations,
 } from "../../lib/admin";
 
 export const dynamic = "force-dynamic";
@@ -53,9 +54,7 @@ export default async function AdminPage() {
   }
 
   const rows = await getAdminRows();
-  const attending = rows.filter((row) => row.decision === "attending").length;
-  const declined = rows.filter((row) => row.decision === "declined").length;
-  const pending = rows.filter((row) => row.decision === null).length;
+  const summary = summarizeInvitations(rows);
 
   return (
     <main className="admin-shell">
@@ -79,17 +78,19 @@ export default async function AdminPage() {
       )}
 
       <section className="admin-stats" aria-label="Resumen de confirmaciones">
-        <div className="admin-stat"><span>Invitaciones</span><strong>{rows.length}</strong></div>
-        <div className="admin-stat"><span>Asisten</span><strong>{attending}</strong></div>
-        <div className="admin-stat"><span>No asisten</span><strong>{declined}</strong></div>
-        <div className="admin-stat"><span>Pendientes</span><strong>{pending}</strong></div>
+        <div className="admin-stat"><span>Invitaciones</span><strong>{summary.invitations}</strong></div>
+        <div className="admin-stat"><span>Personas que asisten</span><strong>{summary.attending}</strong></div>
+        <div className="admin-stat"><span>Personas que no asisten</span><strong>{summary.declined}</strong></div>
+        <div className="admin-stat"><span>Personas pendientes</span><strong>{summary.pending}</strong></div>
       </section>
+      <p className="admin-note">{summary.seats} cupos reservados en total. Una respuesta por invitación, válida para todo su grupo. Las invitaciones de prueba no se incluyen.</p>
 
       <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
             <tr>
               <th>Invitado</th>
+              <th>Cupos</th>
               <th>Estado</th>
               <th>Fecha de respuesta</th>
               <th>Mensaje</th>
@@ -99,12 +100,13 @@ export default async function AdminPage() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5}>La lista de invitados se cargará en el siguiente paso.</td>
+                <td colSpan={6}>La lista de invitados se cargará en el siguiente paso.</td>
               </tr>
             ) : (
               rows.map((row) => (
                 <tr key={row.id}>
                   <td>{row.displayName}</td>
+                  <td>{row.seatCount}</td>
                   <td>
                     <span className="admin-badge">
                       {row.decision ? decisionLabels[row.decision] : "Pendiente"}

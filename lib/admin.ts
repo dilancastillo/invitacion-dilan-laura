@@ -6,6 +6,7 @@ import { getRuntimeEnv } from "./rsvp";
 export type AdminRow = {
   id: number;
   displayName: string;
+  seatCount: number;
   decision: "attending" | "declined" | null;
   message: string | null;
   submittedAt: string | null;
@@ -33,15 +34,26 @@ export async function getAdminRows(): Promise<AdminRow[]> {
       `SELECT
         g.id AS id,
         g.display_name AS "displayName",
+        g.seat_count AS "seatCount",
         r.decision AS decision,
         r.message AS message,
         to_char(r.submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "submittedAt",
         r.notification_status AS "notificationStatus"
       FROM guests g
       LEFT JOIN rsvps r ON r.guest_id = g.id
-      WHERE g.active = true
+      WHERE g.active = true AND g.is_test = false
       ORDER BY lower(g.display_name) ASC`,
     );
+}
+
+export function summarizeInvitations(rows: AdminRow[]) {
+  return {
+    invitations: rows.length,
+    seats: rows.reduce((sum, row) => sum + row.seatCount, 0),
+    attending: rows.reduce((sum, row) => sum + (row.decision === "attending" ? row.seatCount : 0), 0),
+    declined: rows.reduce((sum, row) => sum + (row.decision === "declined" ? row.seatCount : 0), 0),
+    pending: rows.reduce((sum, row) => sum + (row.decision === null ? row.seatCount : 0), 0),
+  };
 }
 
 export function notificationsAreConfigured(): boolean {
