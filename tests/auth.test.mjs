@@ -41,3 +41,24 @@ test("sign-in serves CSRF protection without exposing client secrets", async () 
   const providers = await (await fetch(`${server.origin}/api/auth/providers`)).text();
   assert.doesNotMatch(providers, /test-client-secret|test-only-not-a-real-secret/);
 });
+
+test("manual confirmation edits reject forged identities and unauthorized signed sessions", async () => {
+  const body = JSON.stringify({ decision: "attending", companions: [], expectedVersion: "0".repeat(32) });
+  async function submit(cookie, origin = server.origin) {
+    return fetch(`${server.origin}/api/admin/invitations/1`, {
+      method: "PATCH", headers: {
+        "Content-Type": "application/json", origin, cookie,
+        "oai-authenticated-user-id": "101", "oai-authenticated-user-email": "admin@example.com",
+      }, body,
+    });
+  }
+  const forged = await submit("next-auth.session-token=forged-token");
+  assert.equal(forged.status, 401);
+  assert.match(forged.headers.get("cache-control"), /no-store/);
+  const rejected = await encode({ secret: testSecret, token: { githubId: "202", name: "Not authorized" } });
+  assert.equal((await submit(`next-auth.session-token=${rejected}`)).status, 401);
+  const allowed = await encode({ secret: testSecret, token: { githubId: "101", name: "Test admin" } });
+  assert.equal((await submit(`next-auth.session-token=${allowed}`, "https://another-site.example")).status, 403);
+  assert.equal((await submit(`next-auth.session-token=${allowed}`, "")).status, 403);
+  assert.equal((await submit(`next-auth.session-token=${allowed}`)).status, 503);
+});

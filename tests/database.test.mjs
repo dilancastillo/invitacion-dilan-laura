@@ -29,6 +29,7 @@ before(async () => {
   const schema = await readFile(new URL("../db/migrations/001-invitations.sql", import.meta.url), "utf8");
   await database.exec(schema);
   await database.exec(await readFile(new URL("../db/migrations/002-group-invitations.sql", import.meta.url), "utf8"));
+  await database.exec(await readFile(new URL("../db/migrations/003-admin-management.sql", import.meta.url), "utf8"));
   const databaseModule = {
     databaseIsConfigured: () => true,
     queryDatabase: async (sql, args) => {

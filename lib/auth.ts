@@ -34,6 +34,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // Check the current allowlist on EVERY request, not only when the session was issued.
       session.weddingAdmin = allowedAdminId(token.githubId);
+      session.adminGithubId = session.weddingAdmin && typeof token.githubId === "string" ? token.githubId : undefined;
       return session;
     },
   },

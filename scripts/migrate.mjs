@@ -14,7 +14,7 @@ try {
   await sql.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
     name text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
-  const migrations = await Promise.all(["001-invitations", "002-group-invitations"].map(async (name) => {
+  const migrations = await Promise.all(["001-invitations", "002-group-invitations", "003-admin-management"].map(async (name) => {
     const source = await readFile(new URL(`../db/migrations/${name}.sql`, import.meta.url), "utf8");
     return { name, source, checksum: createHash("sha256").update(source).digest("hex") };
   }));
@@ -27,7 +27,8 @@ try {
   }
   for (const { name, source, checksum } of migrations) {
     if (applied.has(name)) continue;
-    const statements = source.split(";").map((statement) => statement.trim()).filter(Boolean);
+    const separator = source.includes("-- statement-breakpoint") ? "-- statement-breakpoint" : ";";
+    const statements = source.split(separator).map((statement) => statement.trim()).filter(Boolean);
     await sql.transaction([
       ...statements.map((statement) => sql.query(statement)),
       sql.query("INSERT INTO schema_migrations (name, checksum) VALUES ($1, $2)", [name, checksum]),

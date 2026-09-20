@@ -46,9 +46,13 @@ export async function getInviteByToken(token: string): Promise<InviteRecord | nu
 export async function saveResponse(guestId: number, decision: Decision, message: string): Promise<SavedResponse | null> {
   // The primary key and ON CONFLICT make the first response immutable, even for simultaneous requests.
   const records = await queryDatabase<SavedResponse>(
-    `INSERT INTO rsvps (guest_id, decision, message)
-     SELECT id, $2, $3 FROM guests
-     WHERE id = $1 AND active = true AND is_test = false AND CURRENT_TIMESTAMP < $4::timestamptz
+    `WITH eligible AS (
+       SELECT id FROM guests
+       WHERE id = $1 AND active = true AND is_test = false AND CURRENT_TIMESTAMP < $4::timestamptz
+       FOR UPDATE
+     )
+     INSERT INTO rsvps (guest_id, decision, message)
+     SELECT id, $2, $3 FROM eligible
      ON CONFLICT (guest_id) DO NOTHING
      RETURNING decision, message,
        to_char(submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "submittedAt"`,

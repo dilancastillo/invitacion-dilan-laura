@@ -44,7 +44,7 @@ La consulta de confirmación utiliza `ON CONFLICT DO NOTHING`: una segunda respu
 
 Los invitados se cargarán desde **únicamente la pestaña principal del Excel corregido**, con un enlace por fila. El Excel, el SQL nominal y la lista de enlaces deben permanecer fuera del repositorio. Cada enlace contiene un token aleatorio y la base guarda solo su hash SHA-256.
 
-La migración `002-group-invitations` añade `seat_count`, `is_test` y `source_key` sin modificar la migración inicial. Una respuesta confirma o rechaza todos los cupos de la invitación; no existe confirmación parcial. Los cupos nunca se toman de parámetros enviados por el visitante. Cualquier corrección posterior a los cupos requiere una revisión expresa, ya que afectaría el conteo de personas.
+La migración `002-group-invitations` añade `seat_count`, `is_test` y `source_key` sin modificar la migración inicial. Una respuesta confirma o rechaza todos los cupos de la invitación; no existe confirmación parcial. Los cupos nunca se toman de parámetros enviados por el visitante. El administrador puede añadir acompañantes desde el panel, indicando si usan un cupo existente o uno adicional.
 
 Las invitaciones `is_test = true` son solo vistas previas: permiten abrir el sobre y recorrer la invitación, pero no guardan respuestas, no envían correos y se excluyen del panel real y del CSV. El panel distingue el número de invitaciones del número de personas según sus cupos.
 
@@ -68,6 +68,10 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 7. Vuelve a desplegar y entra en `/admin`. El acceso a la descarga CSV también verifica la sesión y la lista autorizada.
 
 La aplicación nunca confía en cabeceras de identidad enviadas por visitantes. Las sesiones duran ocho horas y se vuelve a comprobar la lista de administradores en cada consulta.
+
+Aplica `003-admin-management` antes de desplegar la gestión del panel. Permite filtrar por asistencia, buscar por invitado o acompañante y usar **Editar** para registrar una confirmación recibida por llamada o mensaje, incluso después del cierre del formulario público. Las respuestas manuales quedan identificadas; las correcciones conservan el mensaje original y el historial de avisos. No se pueden borrar respuestas ni volverlas pendientes.
+
+Los acompañantes comparten la asistencia de la invitación. **Cupo ya reservado** registra el nombre sin aumentar el total; **Cupo adicional** suma una persona. Quitar un acompañante adicional resta su cupo; quitar un nombre de un cupo reservado mantiene el cupo original. Los cambios se registran en `admin_invitation_changes` con el administrador y los valores anteriores y nuevos. Si otra respuesta o edición llegó mientras se editaba, el panel pide recargar para evitar sobrescribirla. El CSV incluye acompañantes y origen de respuesta. Guardar desde el panel no envía correos.
 
 ## 4. Avisos por correo (opcional)
 

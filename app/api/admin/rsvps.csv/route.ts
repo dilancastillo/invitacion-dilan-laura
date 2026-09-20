@@ -15,6 +15,9 @@ export async function GET() {
     "Fecha de respuesta",
     "Mensaje",
     "Estado del aviso",
+    "Origen de respuesta",
+    "Acompañantes en cupos reservados",
+    "Acompañantes con cupo adicional",
   ];
   const lines = [
     header.map(csvCell).join(","),
@@ -30,7 +33,10 @@ export async function GET() {
             : "Pendiente",
         row.submittedAt,
         row.message,
-        row.notificationStatus,
+        row.responseSource === "admin" ? "No aplica (registro manual)" : row.notificationStatus,
+        row.responseSource === "admin" ? "Panel (manual)" : row.responseSource === "guest" ? "Enlace del invitado" : "",
+        row.companions.filter(c => !c.additionalSeat).map(c => c.name).join("; "),
+        row.companions.filter(c => c.additionalSeat).map(c => c.name).join("; "),
       ]
         .map(csvCell)
         .join(","),

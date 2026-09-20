@@ -4,21 +4,10 @@ import { databaseIsConfigured } from "../../lib/database";
 import {
   getAdminRows,
   notificationsAreConfigured,
-  summarizeInvitations,
 } from "../../lib/admin";
+import AdminDashboard from "./AdminDashboard";
 
 export const dynamic = "force-dynamic";
-
-const decisionLabels = {
-  attending: "Asiste",
-  declined: "No asiste",
-} as const;
-
-const notificationLabels = {
-  pending: "Pendiente",
-  sent: "Enviado",
-  failed: "Falló",
-} as const;
 
 export default async function AdminPage() {
   if (!authIsConfigured()) {
@@ -54,7 +43,6 @@ export default async function AdminPage() {
   }
 
   const rows = await getAdminRows();
-  const summary = summarizeInvitations(rows);
 
   return (
     <main className="admin-shell">
@@ -77,54 +65,7 @@ export default async function AdminPage() {
         </p>
       )}
 
-      <section className="admin-stats" aria-label="Resumen de confirmaciones">
-        <div className="admin-stat"><span>Invitaciones</span><strong>{summary.invitations}</strong></div>
-        <div className="admin-stat"><span>Personas que asisten</span><strong>{summary.attending}</strong></div>
-        <div className="admin-stat"><span>Personas que no asisten</span><strong>{summary.declined}</strong></div>
-        <div className="admin-stat"><span>Personas pendientes</span><strong>{summary.pending}</strong></div>
-      </section>
-      <p className="admin-note">{summary.seats} cupos reservados en total. Una respuesta por invitación, válida para todo su grupo. Las invitaciones de prueba no se incluyen.</p>
-
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Invitado</th>
-              <th>Cupos</th>
-              <th>Estado</th>
-              <th>Fecha de respuesta</th>
-              <th>Mensaje</th>
-              <th>Aviso</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={6}>La lista de invitados se cargará en el siguiente paso.</td>
-              </tr>
-            ) : (
-              rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.displayName}</td>
-                  <td>{row.seatCount}</td>
-                  <td>
-                    <span className="admin-badge">
-                      {row.decision ? decisionLabels[row.decision] : "Pendiente"}
-                    </span>
-                  </td>
-                  <td>{row.submittedAt ?? "—"}</td>
-                  <td>{row.message || "—"}</td>
-                  <td>
-                    {row.notificationStatus
-                      ? notificationLabels[row.notificationStatus]
-                      : "—"}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <AdminDashboard rows={rows} />
     </main>
   );
 }

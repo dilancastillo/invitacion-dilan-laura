@@ -2,11 +2,15 @@ import "server-only";
 import { getAdminSession } from "./auth";
 import { queryDatabase } from "./database";
 import { getRuntimeEnv } from "./rsvp";
+import type { Companion } from "./admin-management";
 
 export type AdminRow = {
   id: number;
   displayName: string;
   seatCount: number;
+  companions: Companion[];
+  version: string;
+  responseSource: "guest" | "admin" | null;
   decision: "attending" | "declined" | null;
   message: string | null;
   submittedAt: string | null;
@@ -35,6 +39,9 @@ export async function getAdminRows(): Promise<AdminRow[]> {
         g.id AS id,
         g.display_name AS "displayName",
         g.seat_count AS "seatCount",
+        g.companions AS companions,
+        md5(jsonb_build_array(g.admin_revision,r.decision,r.message,extract(epoch FROM r.submitted_at))::text) AS version,
+        r.response_source AS "responseSource",
         r.decision AS decision,
         r.message AS message,
         to_char(r.submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "submittedAt",
