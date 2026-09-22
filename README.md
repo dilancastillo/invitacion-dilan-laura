@@ -11,7 +11,7 @@ No utiliza el alojamiento ni el inicio de sesión de ChatGPT.
 - El panel queda cerrado hasta configurar el inicio de sesión GitHub y su lista de administradores.
 - No se incluyen invitados, enlaces personalizados reales, contraseñas ni claves.
 - Los avisos por correo son opcionales y requieren configurar Resend; un fallo de correo no anula una respuesta guardada.
-- La fecha límite de respuesta es el final del 20 de septiembre de 2026, hora de Colombia.
+- La fecha límite de respuesta es el final del 25 de septiembre de 2026, hora de Colombia.
 
 ## 1. Importar en Vercel
 

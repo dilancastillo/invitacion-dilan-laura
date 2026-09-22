@@ -12,7 +12,8 @@ export type InviteRecord = {
   submittedAt: string | null;
 };
 export type SavedResponse = { decision: Decision; message: string; submittedAt: string };
-export const RSVP_DEADLINE_UTC = Date.parse("2026-09-21T05:00:00.000Z");
+// The whole of September 25 remains open in Colombia (UTC-5).
+export const RSVP_DEADLINE_UTC = Date.parse("2026-09-26T05:00:00.000Z");
 
 export function getRuntimeEnv() {
   return {

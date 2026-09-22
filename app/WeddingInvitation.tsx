@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const WEDDING_DATE = new Date("2026-10-10T14:30:00-05:00").getTime();
-const RSVP_DEADLINE = "20 de septiembre de 2026";
+const RSVP_DEADLINE = "25 de septiembre de 2026";
 
 type Decision = "attending" | "declined";
 
@@ -499,7 +499,7 @@ export function WeddingInvitation({
             <p className="section-kicker">Confirmación</p>
             <h2 id="rsvp-title">¿Nos acompañas?</h2>
             <p>
-              Comparte tu respuesta antes del <strong>{RSVP_DEADLINE}</strong>. Esto nos ayudará a
+              Comparte tu respuesta hasta el <strong>{RSVP_DEADLINE}</strong>. Esto nos ayudará a
               preparar con cariño cada lugar.
             </p>
             <small>Este enlace fue preparado especialmente para {guestName}.</small>

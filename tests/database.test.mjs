@@ -34,6 +34,12 @@ before(async () => {
     databaseIsConfigured: () => true,
     queryDatabase: async (sql, args) => {
       queries.push({ sql, args });
+      if (sql.includes("INSERT INTO rsvps") && sql.includes("CURRENT_TIMESTAMP")) {
+        // Use the same frozen clock as the HTTP guard while PostgreSQL still evaluates
+        // the real atomic INSERT and its bound production deadline.
+        const clockSql = sql.replaceAll("CURRENT_TIMESTAMP", `$${args.length + 1}::timestamptz`);
+        return (await database.query(clockSql, [...args, new Date(Date.now()).toISOString()])).rows;
+      }
       return (await database.query(sql, args)).rows;
     },
   };
@@ -114,6 +120,43 @@ test("the actual INSERT also enforces the deadline inside PostgreSQL", async () 
   assert.equal((await database.query("SELECT * FROM rsvps WHERE guest_id = $1", [id])).rows.length, 0);
 });
 
+test("the extended deadline accepts September 22 and the final millisecond of September 25 in Bogota", async (context) => {
+  const cutoff = Date.parse("2026-09-26T00:00:00.000-05:00");
+  assert.equal(rsvp.RSVP_DEADLINE_UTC, cutoff);
+  let currentTime = Date.parse("2026-09-22T12:00:00.000-05:00");
+  context.mock.method(Date, "now", () => currentTime);
+
+  for (const [tokenCharacter, timestamp] of [
+    ["j", "2026-09-22T12:00:00.000-05:00"],
+    ["k", "2026-09-25T23:59:59.999-05:00"],
+  ]) {
+    currentTime = Date.parse(timestamp);
+    const token = tokenCharacter.repeat(32);
+    const id = await fixtureGuest(token, "Invitado dentro del plazo ampliado");
+    const jobsBefore = jobs.length;
+    const response = await endpoint.POST(request(token, "attending", "Respuesta en el plazo ampliado"));
+    assert.equal(response.status, 201, `The invitation must accept a response at ${timestamp}`);
+    assert.deepEqual((await database.query("SELECT decision,message FROM rsvps WHERE guest_id=$1", [id])).rows,
+      [{ decision: "attending", message: "Respuesta en el plazo ampliado" }]);
+    assert.equal(jobs.length, jobsBefore + 1);
+    assert.equal((await endpoint.POST(request(token, "declined", "No debe reemplazar"))).status, 409);
+  }
+
+  currentTime = cutoff;
+  const token = "l".repeat(32);
+  const id = await fixtureGuest(token, "Invitado al cierre del plazo");
+  const jobsBefore = jobs.length;
+  const queriesBefore = queries.length;
+  const response = await endpoint.POST(request(token));
+  assert.equal(response.status, 410, "The deadline closes exactly at midnight on September 26 in Bogota");
+  assert.match((await response.json()).error, /fecha para confirmar asistencia ya finalizó/);
+  assert.equal(queries.length, queriesBefore, "The HTTP deadline must reject before accessing the database");
+  assert.equal(await rsvp.saveResponse(id, "attending", "No debe guardarse"), null,
+    "The PostgreSQL deadline must also reject an insertion at the exact cutoff");
+  assert.equal((await database.query("SELECT count(*) FROM rsvps WHERE guest_id=$1", [id])).rows[0].count, 0);
+  assert.equal(jobs.length, jobsBefore);
+});
+
 test("inactive guests, invalid input and deadline are enforced", async (context) => {
   context.mock.method(Date, "now", () => Date.parse("2026-09-10T12:00:00Z"));
   const token = "d".repeat(32);
@@ -122,7 +165,7 @@ test("inactive guests, invalid input and deadline are enforced", async (context)
   assert.equal(await rsvp.saveResponse(id, "attending", ""), null);
   assert.equal((await endpoint.POST(request("e".repeat(32), "invalid"))).status, 400);
   assert.equal((await endpoint.POST(request("e".repeat(32), "attending", "a".repeat(501)))).status, 400);
-  Date.now.mock.mockImplementation(() => Date.parse("2026-09-21T05:00:00Z"));
+  Date.now.mock.mockImplementation(() => Date.parse("2026-09-26T05:00:00Z"));
   assert.equal((await endpoint.POST(request("e".repeat(32)))).status, 410);
 });
 

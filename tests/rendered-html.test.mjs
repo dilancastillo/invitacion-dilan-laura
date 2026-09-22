@@ -35,6 +35,8 @@ test("renders the finished wedding invitation", async () => {
   assert.match(html, /La antesala de nuestro sí/);
   assert.doesNotMatch(html, /Instantes de nuestra historia|Un poco de nosotros/);
   assert.match(html, /¿Nos acompañas\?/);
+  assert.match(html, /25 de septiembre de 2026/);
+  assert.doesNotMatch(html, /20 de septiembre de 2026/);
   assert.match(html, /Hemos reservado[\s\S]*1 asiento[\s\S]*en tu honor/);
   assert.doesNotMatch(html, /Al abrir, comenzará nuestra canción/);
   assert.doesNotMatch(html, /<figcaption\b/i);
@@ -97,7 +99,7 @@ test("RSVP rejects cross-origin, oversized and malformed requests without touchi
   const oversizedUnicode = JSON.stringify({ token: "a".repeat(32), decision: "attending", message: "💙".repeat(1100) });
   assert.equal((await submit(oversizedUnicode)).status, 413);
   const response = await submit(JSON.stringify({ token: "a".repeat(32), decision: "attending" }));
-  const expired = Date.now() >= Date.parse("2026-09-21T05:00:00Z");
+  const expired = Date.now() >= Date.parse("2026-09-26T05:00:00Z");
   assert.equal(response.status, expired ? 410 : 503);
   assert.match(response.headers.get("cache-control"), /no-store/);
 });

@@ -70,7 +70,7 @@ async function rsvpFor(id) {
 }
 
 test("an authorized admin can record an offline confirmation after the public deadline", async (context) => {
-  context.mock.method(Date, "now", () => Date.parse("2026-09-25T12:00:00Z"));
+  context.mock.method(Date, "now", () => Date.parse("2026-09-27T12:00:00Z"));
   const { id, token } = await fixtureGuest({ name: "María de prueba", seats: 2 });
   const response = await update(id);
   assert.equal(response.status, 200);
